@@ -38,7 +38,43 @@ Click the ↺ refresh icon on the extension card in `chrome://extensions`.
 
 ---
 
-## 💡 How to Use
+## 🧭 Step-by-Step Usage Flow (Optimal)
+
+### Step 1 — Install the extension
+Follow the **Load Unpacked in Chrome** steps below. Pin the icon to your toolbar so it's one click away.
+
+### Step 2 — Open a job listing
+Navigate to any job posting on LinkedIn, Greenhouse, Lever, Indeed, Glassdoor, Workday, or a company careers page. **Make sure the full job detail page is loaded** — not just a search results page.
+
+> Tip: The tab title is your signal. If it shows "Software Engineer at Google" you're on the right page.
+
+### Step 3 — Click the ApplyTrack icon
+The extension reads the **tab title** and **URL** only — nothing else. It auto-fills:
+- **Company** — parsed from the title (or domain name as fallback)
+- **Role** — parsed from the title
+- **URL** — the current page address
+- **H1B badge** — auto-detected from the sponsor list
+
+### Step 4 — Review and correct the pre-filled fields
+The parser is accurate but not perfect. Always glance at the fields before saving:
+- Fix typos in company or role name
+- Adjust the H1B badge if you know better
+- Add notes (interview date, recruiter name, salary range)
+
+### Step 5 — Save
+Click **Save**. The job appears on your Kanban board under **Applied**.
+
+### Step 6 — Track progress
+As your application moves forward, update the stage:
+- `Applied` → `Interviewing` → `Offer` / `Rejected` / `Ghosted`
+- Use the dropdown on each card or drag the card to the right column
+
+### Step 7 — Export when needed
+Click **Export CSV** in the footer at any time. Share it with a recruiter, import it into a spreadsheet, or keep it as a backup.
+
+---
+
+## 💡 Quick Reference
 
 | Action | How |
 |--------|-----|
@@ -51,15 +87,51 @@ Click the ↺ refresh icon on the extension card in `chrome://extensions`.
 
 ---
 
+## 🔍 How the Page Reading Works (Technical)
+
+When you click the icon, the extension reads exactly **two things** from the current tab:
+
+| What it reads | Where it comes from |
+|---|---|
+| `document.title` | The browser tab title |
+| `window.location.href` | The URL in your address bar |
+
+It reads **nothing else** — no job description, no salary, no DOM elements, no cookies, no login state.
+
+### How it parses the title into Company + Role
+
+The tab title is split using these patterns (tried in order):
+
+| Pattern | Example title | Result |
+|---|---|---|
+| `"Role at Company"` | `Software Engineer at Google \| LinkedIn` | Role=Software Engineer, Company=Google |
+| `"Company: Role"` | `Stripe: Backend Engineer` | Company=Stripe, Role=Backend Engineer |
+| `"Company — Role"` | `Shopify — iOS Developer` | Company=Shopify, Role=iOS Developer |
+| Fallback | Unrecognizable title | Company=domain name (e.g. `careers.stripe.com` → `stripe`) |
+
+The site suffix (LinkedIn, Indeed, Glassdoor, etc.) is stripped before parsing so it never pollutes the company name.
+
+---
+
 ## 🌐 Supported Job Boards (auto-parsing)
 
-Title parsing works on most job sites including:
+| Job Board | Works? | Tab title pattern |
+|---|---|---|
+| **LinkedIn** | ✅ Best | `Software Engineer at Google \| LinkedIn` |
+| **Greenhouse** | ✅ Best | `Stripe - Backend Engineer` |
+| **Lever** | ✅ Best | `Shopify: iOS Developer` |
+| **Indeed** | ✅ Good | `SWE - Google \| Indeed.com` |
+| **Glassdoor** | ✅ Good | `Google Software Engineer \| Glassdoor` |
+| **Workday** | ⚠️ Partial | Titles are inconsistent — check and correct before saving |
+| **Company career pages** | ⚠️ Fallback | Company name guessed from domain; role filled from title |
+| **Generic job boards** | ⚠️ Fallback | Same as above — always verify before saving |
 
-- LinkedIn (`Role at Company | LinkedIn`)
-- Greenhouse (`Company - Role`)
-- Lever (`Company: Role`)
-- Workday, Indeed, Glassdoor
-- Any site where job title is in the browser tab
+**Rule of thumb:** If the tab title clearly shows the job role and company name, the extension will parse it correctly. If the tab title just says "Careers" or "Job Application", the fields will need manual input.
+
+**Pages that will NOT work:**
+- Search results pages (e.g. LinkedIn job search listing, Indeed search results) — open the individual job posting first
+- Pages behind a broken login redirect
+- PDFs or job postings embedded in iframes with a different domain title
 
 ---
 
@@ -74,6 +146,26 @@ When you type a company name, ApplyTrack checks it against a curated list of ~10
 You can always override the badge manually when saving/editing a job.
 
 > ⚠️ The sponsor list is a community-curated snapshot. Always verify with official [USCIS H1B disclosure data](https://www.uscis.gov/tools/reports-and-studies/h-1b-employer-data-hub).
+
+---
+
+## ⚖️ Is This Legal?
+
+**Yes — completely legal.** Here is why:
+
+| Concern | Reality |
+|---|---|
+| "Is reading the page title scraping?" | No. The tab title is the same text your OS taskbar already displays. It requires zero special access. |
+| "Does it bypass any login or CAPTCHA?" | No. It only runs when *you* are already logged in and viewing the page. |
+| "Does it violate LinkedIn / Greenhouse ToS?" | No. ToS restrictions on scraping target automated bots that make mass requests. This extension makes zero network requests to any job site — it just reads text you can already see. |
+| "Does it send my data anywhere?" | No. All data stays in `chrome.storage.local` on your own machine. No server ever receives it. |
+| "Could I get banned for using it?" | Extremely unlikely. It behaves like a human reading the tab title — because that is all it does. |
+
+**What would make it illegal (and what this extension does NOT do):**
+- Sending automated HTTP requests to scrape job listings at scale
+- Bypassing paywalls or login walls
+- Reselling or republishing the scraped data commercially
+- Accessing data you are not authorized to view
 
 ---
 
