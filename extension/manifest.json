@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "ApplyTrack",
   "short_name": "ApplyTrack",
-  "description": "Track job applications with H1B visa sponsorship detection. Kanban board, JSON backup, follow-up reminders. All data stays on your device.",
+  "description": "Track job applications with H1B visa sponsorship. Reads job info from the active tab when you click. All data stays local.",
   "version": "1.1.0",
   "permissions": [
     "storage",
@@ -36,7 +36,12 @@
     "*://*.simplyhired.com/*",
     "*://*.careerbuilder.com/*",
     "*://*.joinhandshake.com/*",
-    "*://*.otta.com/*"
+    "*://*.otta.com/*",
+    "*://*.mynexthire.io/*",
+    "*://*.rippling.com/*",
+    "*://*.gem.com/*",
+    "*://*.pinpointhq.com/*",
+    "*://*.breezy.hr/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -53,6 +58,9 @@
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
   },
   "background": {
     "service_worker": "background.js"

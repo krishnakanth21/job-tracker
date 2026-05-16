@@ -167,6 +167,36 @@
       q('[class*="company-name"]')
     );
 
+    // MyNextHire  (company.careers.mynexthire.io)
+    if (host.includes('mynexthire.io')) return pick(
+      q('h1, h2.job-title, [class*="job-title"], [class*="job_title"]'),
+      q('[class*="company-name"], [class*="employer"]') || cap(host.split('.')[0])
+    );
+
+    // Rippling / Rippling ATS  (app.rippling.com/job-listings, *.rippling.com)
+    if (host.includes('rippling.com')) return pick(
+      q('h1[class*="title"], h1'),
+      q('[class*="company"], [class*="employer"]') || fromHostname()
+    );
+
+    // Gem  (jobs.gem.com / company.gem.com)
+    if (host.includes('gem.com')) return pick(
+      q('h1, [class*="job-title"]'),
+      q('[class*="company-name"]') || urlSlug(/gem\.com\/([^/?#]+)/)
+    );
+
+    // Pinpoint  (company.pinpointhq.com)
+    if (host.includes('pinpointhq.com')) return pick(
+      q('h1, [class*="job-title"]'),
+      cap(host.split('.')[0])
+    );
+
+    // Breezy HR  (company.breezy.hr)
+    if (host.includes('breezy.hr')) return pick(
+      q('h1, [class*="position"]'),
+      cap(host.split('.')[0])
+    );
+
     return null;
   }
 
@@ -187,9 +217,13 @@
   }
 
   // ── 4. Title parse fallback ───────────────────────────────────────────────
+  const GENERIC_WORDS = new Set(['careers', 'career', 'jobs', 'job', 'apply', 'hiring', 'mynexthire', 'greenhouse', 'lever', 'workday', 'taleo', 'icims', 'smartrecruiters', 'jobvite', 'workable', 'recruitee', 'ashby', 'bamboohr']);
+
+  function isGeneric(s) { return GENERIC_WORDS.has(s.toLowerCase().trim()); }
+
   function fromTitle() {
     let t = (document.title || '').slice(0, 300)
-      .replace(/\s*[|\-–—]\s*(LinkedIn|Indeed|Greenhouse|Lever|Workday|Glassdoor|Builtin|Dice|ZipRecruiter|SmartRecruiters|Wellfound|AngelList|Handshake|Ashby|Otta|Monster|Recruitee|Jobvite|Workable|BambooHR|Careers?|Jobs?|Apply Now)\s*$/i, '')
+      .replace(/\s*[|\-–—]\s*(LinkedIn|Indeed|Greenhouse|Lever|Workday|Glassdoor|Builtin|Dice|ZipRecruiter|SmartRecruiters|Wellfound|AngelList|Handshake|Ashby|Otta|Monster|Recruitee|Jobvite|Workable|BambooHR|MyNextHire|Careers?|Jobs?|Apply Now)\s*$/i, '')
       .replace(/\s+/g, ' ').trim();
 
     let m = t.match(/^(.+?)\s+at\s+(.+)$/i);
@@ -202,8 +236,12 @@
     if (m) {
       const [p1, p2] = [m[1].trim(), m[2].trim()];
       // Shorter, fewer-word segment is more likely the company name
-      if (p1.split(' ').length <= 4 && p1.length < p2.length) return { role: p2, company: p1, url };
-      if (p2.split(' ').length <= 4 && p2.length < p1.length) return { role: p1, company: p2, url };
+      if (p1.split(' ').length <= 4 && p1.length < p2.length) {
+        return isGeneric(p1) ? { role: p2, company: fromHostname(), url } : { role: p2, company: p1, url };
+      }
+      if (p2.split(' ').length <= 4 && p2.length < p1.length) {
+        return isGeneric(p2) ? { role: p1, company: fromHostname(), url } : { role: p1, company: p2, url };
+      }
       return { role: p2, company: p1, url };
     }
 

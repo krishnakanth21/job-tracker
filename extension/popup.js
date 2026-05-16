@@ -34,7 +34,7 @@ const Store = {
 // ── App State ─────────────────────────────────────────────────────────────────
 const S = {
   jobs: [], view: 'dashboard', editId: null,
-  theme: 'dark', filter: '', prefill: null,
+  theme: 'dark', filter: '', prefill: null, optEndDate: '',
 };
 
 // ── Sample Data (demo/preview mode only) ──────────────────────────────────────
@@ -76,6 +76,7 @@ async function init() {
   const anyMigrated = jobs.some(j => migrateTimeline(j));
   S.jobs = jobs;
   if (anyMigrated) await Store.set('jobs', S.jobs);
+  S.optEndDate = (await Store.get('optEndDate')) || '';
 
   if (IS_EXTENSION && chrome.tabs && chrome.scripting) {
     try {
@@ -122,9 +123,11 @@ function renderDashboardView() {
     <button class="settings-btn-header" id="settingsBtn">${icoGear()}<span>Settings</span></button>
   </div>
 </header>
+${renderOptBanner()}
 <div class="stats-bar">
   ${STAGES.map(s => `<div class="stat-item" style="--stage-color:${s.color}"><span class="stat-count">${counts[s.id]}</span><span class="stat-label">${s.label}</span></div>`).join('')}
 </div>
+${renderInsightsBar()}
 <div class="toolbar">
   <div class="search-wrap">
     <svg class="search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -178,6 +181,44 @@ function renderEmptyState() {
 </div>`;
 }
 
+function computeStats(jobs) {
+  if (!jobs.length) return null;
+  const responded = jobs.filter(j => j.status === 'Interviewing' || j.status === 'Offer' || j.status === 'Rejected').length;
+  const active = jobs.filter(j => j.status === 'Applied' || j.status === 'Interviewing');
+  const rate = Math.round((responded / jobs.length) * 100);
+  const avgDays = active.length
+    ? Math.round(active.reduce((sum, j) => sum + daysSince(j.dateApplied), 0) / active.length)
+    : 0;
+  return { rate, responded, total: jobs.length, activeCount: active.length, avgDays };
+}
+
+function renderOptBanner() {
+  if (!S.optEndDate) return '';
+  const msLeft = new Date(S.optEndDate) - Date.now();
+  const daysLeft = Math.ceil(msLeft / 86400000);
+  if (daysLeft < 0) {
+    return `<div class="opt-banner urgent"><span class="opt-days">Expired</span><span class="opt-text">Work authorization may have ended · Update in Settings</span></div>`;
+  }
+  const cls = daysLeft <= 30 ? 'urgent' : daysLeft <= 60 ? 'warning' : '';
+  const label = daysLeft === 0 ? 'Today' : `${daysLeft}d left`;
+  const dateStr = new Date(S.optEndDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return `<div class="opt-banner ${cls}"><span class="opt-days">${label}</span><span class="opt-text">OPT/CPT ends ${dateStr}</span></div>`;
+}
+
+function renderInsightsBar() {
+  if (!S.jobs.length) return '';
+  const st = computeStats(S.jobs);
+  if (!st) return '';
+  return `
+<div class="insights-bar">
+  <div class="ins-item"><span class="ins-val">${st.rate}%</span><span class="ins-label">response rate</span></div>
+  <div class="ins-sep"></div>
+  <div class="ins-item"><span class="ins-val">${st.avgDays}d</span><span class="ins-label">avg active</span></div>
+  <div class="ins-sep"></div>
+  <div class="ins-item"><span class="ins-val">${st.activeCount}</span><span class="ins-label">in progress</span></div>
+</div>`;
+}
+
 function renderCol(stage, jobs) {
   const list = jobs.filter(j => j.status === stage.id);
   return `
@@ -197,32 +238,32 @@ function renderCard(j) {
   const age = d === 0 ? 'Today' : d === 1 ? '1d ago' : `${d}d ago`;
   const lastEntry = j.timeline?.length ? j.timeline[j.timeline.length - 1] : null;
   const hasReminder = j.reminderDays && j.reminderSet;
+  const idle = lastActivityDays(j);
+  const staleClass = j.status === 'Applied' ? (idle > 30 ? ' card-stale-urgent' : idle > 14 ? ' card-stale' : '') : '';
+  const companyEl = j.url
+    ? `<a class="card-company card-link" href="${esc(j.url)}" target="_blank" rel="noopener" title="Open job listing">${esc(j.company)}</a>`
+    : `<span class="card-company">${esc(j.company)}</span>`;
   return `
-<div class="card" data-id="${j.id}" draggable="true">
+<div class="card${staleClass}" data-id="${j.id}" draggable="true">
   <div class="card-top">
-    <span class="card-company">${esc(j.company)}</span>
+    ${companyEl}
     ${renderBadge(j.visaSponsor)}
   </div>
   <div class="card-role">${esc(j.role)}</div>
   ${lastEntry ? `<div class="card-last-entry">${esc(lastEntry.text)}</div>` : ''}
   <div class="card-bottom">
     <span class="card-days">${age}${hasReminder ? ' · <span class="card-reminder-dot" title="Reminder set">⏰</span>' : ''}</span>
-    <div class="card-actions">
-      <select class="move-select" data-id="${j.id}" title="Move stage">
-        ${STAGES.map(s=>`<option value="${s.id}"${s.id===j.status?' selected':''}>${s.label}</option>`).join('')}
-      </select>
-      <button class="btn-edit-card" data-id="${j.id}" title="Edit">
-        <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M7.5 1.5l2 2L3.5 9.5H1.5V7.5L7.5 1.5Z" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"/></svg>
-      </button>
-    </div>
+    <select class="move-select" data-id="${j.id}" title="Move stage">
+      ${STAGES.map(s=>`<option value="${s.id}"${s.id===j.status?' selected':''}>${s.label}</option>`).join('')}
+    </select>
   </div>
 </div>`;
 }
 
 function renderBadge(v) {
-  if (v==='yes')  return `<span class="badge badge-sponsor">✓ Sponsors H1B</span>`;
-  if (v==='no')   return `<span class="badge badge-no-sponsor">✗ No Sponsorship</span>`;
-  return `<span class="badge badge-unknown">? Unknown</span>`;
+  if (v==='yes')  return `<span class="badge badge-sponsor" title="Sponsors H1B">H1B ✓</span>`;
+  if (v==='no')   return `<span class="badge badge-no-sponsor" title="No H1B sponsorship">No H1B</span>`;
+  return `<span class="badge badge-unknown" title="Sponsorship unknown">?</span>`;
 }
 
 function renderTimelineEntries(job) {
@@ -239,6 +280,7 @@ function renderTimelineEntries(job) {
 function renderFormView() {
   const isEdit = S.view === 'edit';
   const j = isEdit ? S.jobs.find(x => x.id === S.editId) : null;
+  if (isEdit && !j) { S.view = 'dashboard'; S.editId = null; return renderDashboardView(); }
   const p = S.prefill || {};
   const company     = isEdit ? j.company      : (p.company || '');
   const role        = isEdit ? j.role         : (p.role    || '');
@@ -353,6 +395,14 @@ function renderSettingsView() {
     <button class="settings-btn danger" id="clearDataBtn">Clear all applications</button>
   </div>
   <div class="settings-section">
+    <div class="settings-label">OPT / CPT Countdown</div>
+    <div class="field">
+      <label class="label" for="optEndDateInput">Work authorization end date</label>
+      <input class="input" type="date" id="optEndDateInput" value="${esc(S.optEndDate)}">
+    </div>
+    <p class="settings-hint">Shows a countdown banner on your dashboard. Leave blank to hide.</p>
+  </div>
+  <div class="settings-section">
     <div class="settings-label">About</div>
     <div class="settings-info">
       <div class="settings-info-row"><span>Version</span><span>1.1.0</span></div>
@@ -365,8 +415,6 @@ function renderSettingsView() {
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 function icoLogo() { return `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 7l3 3 5-5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }
-function icoMoon() { return `<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M12.5 9A6 6 0 015.5 2a6 6 0 000 11 6 6 0 007-4z" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }
-function icoSun()  { return `<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="2.8" stroke="currentColor" stroke-width="1.35"/><path d="M7.5 1.5v1.3M7.5 12.2v1.3M1.5 7.5h1.3M12.2 7.5h1.3M3.4 3.4l.9.9M10.7 10.7l.9.9M3.4 11.6l.9-.9M10.7 4.3l.9-.9" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>`; }
 function icoGear() { return `<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="2.2" stroke="currentColor" stroke-width="1.35"/><path d="M7.5 1.5v1M7.5 12.5v1M1.5 7.5h1M12.5 7.5h1M3.1 3.1l.7.7M11.2 11.2l.7.7M3.1 11.9l.7-.7M11.2 3.8l.7-.7" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>`; }
 
 // ── Event Binding ─────────────────────────────────────────────────────────────
@@ -433,6 +481,12 @@ function bind() {
     e.target.value = '';
   });
 
+  // OPT/CPT end date
+  el('optEndDateInput')?.addEventListener('change', async e => {
+    S.optEndDate = e.target.value;
+    await Store.set('optEndDate', S.optEndDate);
+  });
+
   // Activity log entry
   el('logEntryBtn')?.addEventListener('click', async () => {
     const input = el('timelineInput');
@@ -454,8 +508,8 @@ function bind() {
   if (kanbanEl) {
     let dragId = null;
     kanbanEl.addEventListener('click', e => {
-      const btn = e.target.closest('.btn-edit-card');
-      if (btn) { e.stopPropagation(); S.editId = btn.dataset.id; S.view = 'edit'; render(); return; }
+      if (e.target.closest('.move-select')) return;
+      if (e.target.closest('.card-link')) return;
       const card = e.target.closest('.card');
       if (card) { S.editId = card.dataset.id; S.view = 'edit'; render(); }
     });
@@ -716,8 +770,7 @@ function showTweaksPanel(tweaks, applyTweaks) {
   p.innerHTML = `
 <div class="tweaks-title">Tweaks</div>
 <div class="tweak-row"><div class="tweak-label">Theme</div><div class="tweak-options">
-  <button class="tweak-opt${tweaks.theme==='dark'?' active':''}" data-k="theme" data-v="dark">Dark</button>
-  <button class="tweak-opt${tweaks.theme==='light'?' active':''}" data-k="theme" data-v="light">Light</button>
+  <button class="tweak-opt active" data-k="theme" data-v="dark">Dark</button>
 </div></div>
 <div class="tweak-row"><div class="tweak-label">Accent</div><div class="tweak-swatches">
   <div class="tweak-swatch${tweaks.accent==='purple'?' active':''}" style="background:#7C5BF5" data-k="accent" data-v="purple"></div>
@@ -755,6 +808,10 @@ function fmtTs(ts) {
          d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 function daysSince(d) { return Math.max(0, Math.floor((Date.now() - new Date(d)) / 86400000)); }
+function lastActivityDays(j) {
+  if (j.timeline?.length) return Math.floor((Date.now() - new Date(j.timeline[j.timeline.length-1].ts)) / 86400000);
+  return daysSince(j.dateApplied);
+}
 function today()      { return new Date().toISOString().slice(0, 10); }
 function uid()        { return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 9); }
 function esc(s)       { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
