@@ -21,7 +21,22 @@
     "*://*.glassdoor.com/*",
     "*://*.smartrecruiters.com/*",
     "*://*.icims.com/*",
-    "*://*.taleo.net/*"
+    "*://*.taleo.net/*",
+    "*://*.ashbyhq.com/*",
+    "*://*.wellfound.com/*",
+    "*://*.angel.co/*",
+    "*://*.jobvite.com/*",
+    "*://*.bamboohr.com/*",
+    "*://*.workable.com/*",
+    "*://*.recruitee.com/*",
+    "*://*.builtin.com/*",
+    "*://*.dice.com/*",
+    "*://*.ziprecruiter.com/*",
+    "*://*.monster.com/*",
+    "*://*.simplyhired.com/*",
+    "*://*.careerbuilder.com/*",
+    "*://*.joinhandshake.com/*",
+    "*://*.otta.com/*"
   ],
   "action": {
     "default_popup": "popup.html",

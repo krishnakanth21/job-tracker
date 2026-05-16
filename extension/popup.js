@@ -66,8 +66,8 @@ function migrateTimeline(job) {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function init() {
-  S.theme = (await Store.get('theme')) || 'dark';
-  document.documentElement.setAttribute('data-theme', S.theme);
+  S.theme = 'dark';
+  document.documentElement.setAttribute('data-theme', 'dark');
 
   let jobs = await Store.get('jobs');
   if (!jobs) {
@@ -119,8 +119,7 @@ function renderDashboardView() {
 <header class="header">
   <div class="header-left"><div class="logo"><div class="logo-mark">${icoLogo()}</div><span class="logo-text">ApplyTrack</span></div></div>
   <div class="header-actions">
-    <button class="icon-btn" id="themeToggle" title="Toggle theme">${S.theme==='dark'?icoSun():icoMoon()}</button>
-    <button class="icon-btn" id="settingsBtn" title="Settings">${icoGear()}</button>
+    <button class="settings-btn-header" id="settingsBtn">${icoGear()}<span>Settings</span></button>
   </div>
 </header>
 <div class="stats-bar">
@@ -141,10 +140,21 @@ function renderDashboardView() {
   ${STAGES.map(st => renderCol(st, filtered)).join('')}
 </div></div>
 <footer class="footer">
-  <button class="btn-export" id="exportBtn">
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 9.5v2h9v-2M6.5 2v6.5M4 6l2.5 2.5L9 6" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    Export CSV
-  </button>
+  <div class="footer-actions">
+    <button class="btn-footer-action" id="exportBtn">
+      <svg width="12" height="12" viewBox="0 0 13 13" fill="none"><path d="M2 9.5v2h9v-2M6.5 2v6.5M4 6l2.5 2.5L9 6" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      CSV
+    </button>
+    <button class="btn-footer-action accent" id="exportJsonMainBtn">
+      <svg width="12" height="12" viewBox="0 0 13 13" fill="none"><path d="M2 9.5v2h9v-2M6.5 2v6.5M4 6l2.5 2.5L9 6" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Backup
+    </button>
+    <button class="btn-footer-action" id="importJsonMainBtn">
+      <svg width="12" height="12" viewBox="0 0 13 13" fill="none"><path d="M2 9.5v2h9v-2M6.5 9V2.5M4 5l2.5-2.5L9 5" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Restore
+    </button>
+    <input type="file" id="importFileMainInput" accept=".json" style="display:none">
+  </div>
   <span class="footer-count">${S.jobs.length} job${S.jobs.length!==1?'s':''} tracked</span>
 </footer>`;
 }
@@ -154,8 +164,7 @@ function renderEmptyState() {
 <header class="header">
   <div class="header-left"><div class="logo"><div class="logo-mark">${icoLogo()}</div><span class="logo-text">ApplyTrack</span></div></div>
   <div class="header-actions">
-    <button class="icon-btn" id="themeToggle">${S.theme==='dark'?icoSun():icoMoon()}</button>
-    <button class="icon-btn" id="settingsBtn">${icoGear()}</button>
+    <button class="settings-btn-header" id="settingsBtn">${icoGear()}<span>Settings</span></button>
   </div>
 </header>
 <div class="empty-dashboard">
@@ -324,17 +333,6 @@ function renderSettingsView() {
 </header>
 <div class="settings-body">
   <div class="settings-section">
-    <div class="settings-label">Appearance</div>
-    <div class="theme-options">
-      <button class="theme-opt${S.theme==='dark'?' active':''}" data-theme="dark">
-        <div class="theme-preview dark-preview"></div><span>Dark</span>
-      </button>
-      <button class="theme-opt${S.theme==='light'?' active':''}" data-theme="light">
-        <div class="theme-preview light-preview"></div><span>Light</span>
-      </button>
-    </div>
-  </div>
-  <div class="settings-section">
     <div class="settings-label">Backup &amp; Restore</div>
     <div class="settings-btn-pair">
       <button class="settings-btn accent" id="exportJsonBtn">
@@ -373,7 +371,6 @@ function icoGear() { return `<svg width="15" height="15" viewBox="0 0 15 15" fil
 
 // ── Event Binding ─────────────────────────────────────────────────────────────
 function bind() {
-  el('themeToggle')?.addEventListener('click', toggleTheme);
   el('settingsBtn')?.addEventListener('click', () => { S.view = 'settings'; render(); });
   el('backBtn')?.addEventListener('click', () => { S.view = 'dashboard'; S.editId = null; S.prefill = null; render(); });
   el('addJobBtn')?.addEventListener('click', () => { S.view = 'add'; S.prefill = null; render(); });
@@ -414,21 +411,20 @@ function bind() {
     S.view = 'dashboard'; S.editId = null; render();
   });
 
-  // Theme options (settings)
-  qsa('.theme-opt').forEach(b => b.addEventListener('click', async () => {
-    S.theme = b.dataset.theme;
-    document.documentElement.setAttribute('data-theme', S.theme);
-    await Store.set('theme', S.theme);
-    render();
-  }));
-
   // Clear data
   el('clearDataBtn')?.addEventListener('click', async () => {
     if (!confirm('Delete ALL tracked applications? This cannot be undone.')) return;
     S.jobs = []; await Store.set('jobs', []); S.view = 'dashboard'; render();
   });
 
-  // JSON export / import
+  // JSON export / import (settings + main footer)
+  el('exportJsonMainBtn')?.addEventListener('click', exportJSON);
+  el('importJsonMainBtn')?.addEventListener('click', () => el('importFileMainInput')?.click());
+  el('importFileMainInput')?.addEventListener('change', e => {
+    const file = e.target.files?.[0];
+    if (file) importJSON(file);
+    e.target.value = '';
+  });
   el('exportJsonBtn')?.addEventListener('click', exportJSON);
   el('importJsonBtn')?.addEventListener('click', () => el('importFileInput')?.click());
   el('importFileInput')?.addEventListener('change', e => {
@@ -575,13 +571,6 @@ async function moveJob(id, stage) {
   S.jobs = S.jobs.map(j => j.id === id ? { ...j, status: stage } : j);
   await Store.set('jobs', S.jobs);
   refreshKanban();
-}
-
-async function toggleTheme() {
-  S.theme = S.theme === 'dark' ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', S.theme);
-  await Store.set('theme', S.theme);
-  const btn = el('themeToggle'); if (btn) btn.innerHTML = S.theme==='dark' ? icoSun() : icoMoon();
 }
 
 // ── Export / Import ───────────────────────────────────────────────────────────
