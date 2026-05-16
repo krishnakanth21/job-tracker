@@ -2,12 +2,14 @@
   "manifest_version": 3,
   "name": "ApplyTrack",
   "short_name": "ApplyTrack",
-  "description": "Track job applications with H1B visa sponsorship detection. Kanban board, CSV export, all data stays on your device.",
-  "version": "1.0.0",
+  "description": "Track job applications with H1B visa sponsorship detection. Kanban board, JSON backup, follow-up reminders. All data stays on your device.",
+  "version": "1.1.0",
   "permissions": [
     "storage",
     "activeTab",
-    "scripting"
+    "scripting",
+    "alarms",
+    "notifications"
   ],
   "host_permissions": [
     "*://*.linkedin.com/*",
