@@ -1,12 +1,12 @@
-// background.js — ApplyTrack MV3 service worker  v1.1.0
+// background.js — ApplyVault MV3 service worker  v1.1.0
 // Handles: install logging · follow-up reminder alarms · notifications
 
 chrome.runtime.onInstalled.addListener(({ reason }) => {
   if (reason === 'install') {
-    console.log('[ApplyTrack] Installed. All data stored in chrome.storage.local.');
+    console.log('[ApplyVault] Installed. All data stored in chrome.storage.local.');
   }
   if (reason === 'update') {
-    console.log('[ApplyTrack] Updated to v1.1.0.');
+    console.log('[ApplyVault] Updated to v1.1.0.');
   }
 });
 
@@ -31,7 +31,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   chrome.notifications.create(`notif_${jobId}_${Date.now()}`, {
     type:     'basic',
     iconUrl:  'icons/icon48.png',
-    title:    'ApplyTrack — Follow-Up Reminder',
+    title:    'ApplyVault — Follow-Up Reminder',
     message:  `You applied to ${company} for ${role} ${days} day${days !== 1 ? 's' : ''} ago. Any update?`,
     priority: 1,
     requireInteraction: false,
