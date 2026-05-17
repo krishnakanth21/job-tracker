@@ -1,9 +1,9 @@
-// sponsors.js — Known H1B visa sponsors (100+ companies)
+// sponsors.js — Known visa-sponsoring companies (100+ companies)
 // Normalized to lowercase. Matched against user-entered company name.
-// Sources: USCIS H1B disclosure data, public employer databases.
-// Last updated: 2026. Always verify with official USCIS sources.
+// Covers US, EU, UK, Australia and other major hiring markets.
+// Last updated: 2026. Always verify with the employer directly.
 
-const H1B_SPONSORS = new Set([
+const VISA_SPONSORS = new Set([
   // ── FAANG & Tier-1 Tech ───────────────────────────────────────────────────
   'google', 'alphabet', 'microsoft', 'amazon', 'apple', 'meta', 'facebook',
   'netflix', 'nvidia',

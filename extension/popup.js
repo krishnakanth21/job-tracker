@@ -1,6 +1,6 @@
 'use strict';
 // ═══════════════════════════════════════════════════════════════════════════
-// ApplyTrack — popup.js  v1.1.0
+// ApplyVault — popup.js  v1.1.0
 // New: JSON backup/restore · Duplicate detection · Follow-up reminders
 //      Timestamped activity log · Date validation · Storage quota warnings
 // ═══════════════════════════════════════════════════════════════════════════
@@ -118,7 +118,7 @@ function renderDashboardView() {
   if (!S.jobs.length) return renderEmptyState();
   return `
 <header class="header">
-  <div class="header-left"><div class="logo"><div class="logo-mark">${icoLogo()}</div><span class="logo-text">ApplyTrack</span></div></div>
+  <div class="header-left"><div class="logo"><div class="logo-mark">${icoLogo()}</div><span class="logo-text">ApplyVault</span></div></div>
   <div class="header-actions">
     <button class="settings-btn-header" id="settingsBtn">${icoGear()}<span>Settings</span></button>
   </div>
@@ -165,7 +165,7 @@ ${renderInsightsBar()}
 function renderEmptyState() {
   return `
 <header class="header">
-  <div class="header-left"><div class="logo"><div class="logo-mark">${icoLogo()}</div><span class="logo-text">ApplyTrack</span></div></div>
+  <div class="header-left"><div class="logo"><div class="logo-mark">${icoLogo()}</div><span class="logo-text">ApplyVault</span></div></div>
   <div class="header-actions">
     <button class="settings-btn-header" id="settingsBtn">${icoGear()}<span>Settings</span></button>
   </div>
@@ -173,7 +173,7 @@ function renderEmptyState() {
 <div class="empty-dashboard">
   <div class="empty-icon"><svg width="26" height="26" viewBox="0 0 26 26" fill="none"><rect x="3" y="6" width="20" height="17" rx="3" stroke="currentColor" stroke-width="1.7"/><path d="M8 3v4M18 3v4M3 11h20" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M8.5 16l2.5 2 5-4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
   <p class="empty-title">No applications yet</p>
-  <p class="empty-sub">Open a job listing, then click the ApplyTrack icon to save it. Or add manually.</p>
+  <p class="empty-sub">Open a job listing, then click the ApplyVault icon to save it. Or add manually.</p>
   <button class="btn-empty-add" id="addJobBtn">
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>
     Add your first job
@@ -261,8 +261,8 @@ function renderCard(j) {
 }
 
 function renderBadge(v) {
-  if (v==='yes')  return `<span class="badge badge-sponsor" title="Sponsors H1B">H1B ✓</span>`;
-  if (v==='no')   return `<span class="badge badge-no-sponsor" title="No H1B sponsorship">No H1B</span>`;
+  if (v==='yes')  return `<span class="badge badge-sponsor" title="Sponsors visas">Visa ✓</span>`;
+  if (v==='no')   return `<span class="badge badge-no-sponsor" title="No visa sponsorship">No Visa</span>`;
   return `<span class="badge badge-unknown" title="Sponsorship unknown">?</span>`;
 }
 
@@ -339,7 +339,7 @@ ${autoDetected ? `<div class="auto-detect-banner"><svg width="13" height="13" vi
         <button type="button" class="sponsor-btn${sponsor==='unknown'?' active':''}" data-val="unknown"><span class="sponsor-dot gray"></span>Unknown</button>
         <button type="button" class="sponsor-btn${sponsor==='no'?' active':''}" data-val="no"><span class="sponsor-dot red"></span>Doesn't</button>
       </div>
-      ${(!isEdit && detectSponsor(company)==='yes' && company) ? `<p class="field-hint">✓ Known H1B sponsor auto-detected</p>` : ''}
+      ${(!isEdit && detectSponsor(company)==='yes' && company) ? `<p class="field-hint">✓ Known visa sponsor auto-detected</p>` : ''}
     </div>
     <div class="field">
       <label class="label">Notes</label>
@@ -632,7 +632,7 @@ function exportCSV() {
   const hdr = ['Company','Role','Status','Date Applied','Visa Sponsor','URL','Notes'];
   const rows = S.jobs.map(j => [j.company,j.role,j.status,j.dateApplied,j.visaSponsor,j.url,j.notes].map(csv));
   const blob = new Blob([[hdr, ...rows].map(r => r.join(',')).join('\n')], { type: 'text/csv' });
-  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `applytrack-${today()}.csv` });
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `applyvault-${today()}.csv` });
   a.click(); URL.revokeObjectURL(a.href);
 }
 
@@ -641,7 +641,7 @@ function exportJSON() {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const a = Object.assign(document.createElement('a'), {
     href: URL.createObjectURL(blob),
-    download: `applytrack-backup-${today()}.json`,
+    download: `applyvault-backup-${today()}.json`,
   });
   a.click(); URL.revokeObjectURL(a.href);
 }
@@ -654,7 +654,7 @@ async function importJSON(file) {
 
     // Support bare array or {version, jobs} envelope
     const imported = Array.isArray(parsed) ? parsed : (parsed?.jobs ?? null);
-    if (!Array.isArray(imported)) throw new Error('Expected a jobs array or an ApplyTrack backup file.');
+    if (!Array.isArray(imported)) throw new Error('Expected a jobs array or an ApplyVault backup file.');
 
     const valid = imported.filter(j => j.id && j.company && j.role);
     if (!valid.length) throw new Error('No valid job entries found in this file.');
@@ -799,7 +799,7 @@ function hideTweaksPanel() { el('tweaksPanel')?.classList.remove('visible'); }
 function detectSponsor(company) {
   if (!company) return 'unknown';
   const n = company.toLowerCase().trim();
-  for (const s of H1B_SPONSORS) { if (n.includes(s) || s.includes(n)) return 'yes'; }
+  for (const s of VISA_SPONSORS) { if (n.includes(s) || s.includes(n)) return 'yes'; }
   return 'unknown';
 }
 function fmtTs(ts) {

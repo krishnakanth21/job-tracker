@@ -1,4 +1,4 @@
-// content.js — Page reader for ApplyTrack v1.1.0
+// content.js — Page reader for ApplyVault v1.1.0
 // Executed programmatically via chrome.scripting.executeScript() on icon click.
 // Priority: JSON-LD → DOM selectors → OpenGraph meta → title parse → URL hostname
 // Returns: { company: string, role: string, url: string }
