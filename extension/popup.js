@@ -34,7 +34,7 @@ const Store = {
 // ── App State ─────────────────────────────────────────────────────────────────
 const S = {
   jobs: [], view: 'dashboard', editId: null,
-  theme: 'dark', filter: '', prefill: null, optEndDate: '',
+  theme: 'dark', filter: '', prefill: null, optEndDate: '', viewMode: 'kanban',
 };
 
 // ── Sample Data (demo/preview mode only) ──────────────────────────────────────
@@ -134,14 +134,23 @@ ${renderInsightsBar()}
     <input class="search-input" id="searchInput" type="text" placeholder="Search…" value="${esc(S.filter)}">
     ${S.filter ? `<button class="clear-btn" id="clearSearch">✕</button>` : ''}
   </div>
+  <div class="view-toggle">
+    <button class="view-btn${S.viewMode==='kanban'?' active':''}" id="viewKanbanBtn" title="Kanban view">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="2" width="3" height="9" rx="1" fill="currentColor" opacity="0.8"/><rect x="5" y="2" width="3" height="9" rx="1" fill="currentColor" opacity="0.8"/><rect x="9" y="2" width="3" height="9" rx="1" fill="currentColor" opacity="0.8"/></svg>
+    </button>
+    <button class="view-btn${S.viewMode==='list'?' active':''}" id="viewListBtn" title="List view">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="2.5" width="11" height="1.5" rx="0.75" fill="currentColor"/><rect x="1" y="5.75" width="11" height="1.5" rx="0.75" fill="currentColor"/><rect x="1" y="9" width="11" height="1.5" rx="0.75" fill="currentColor"/></svg>
+    </button>
+  </div>
   <button class="btn-add" id="addJobBtn">
     <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1v9M1 5.5h9" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>
     Add Job
   </button>
 </div>
-<div class="kanban-scroll"><div class="kanban" id="kanban">
-  ${STAGES.map(st => renderCol(st, filtered)).join('')}
-</div></div>
+${S.viewMode === 'list'
+  ? `<div class="list-scroll" id="listView">${renderTableView(filtered)}</div>`
+  : `<div class="kanban-scroll"><div class="kanban" id="kanban">${STAGES.map(st => renderCol(st, filtered)).join('')}</div></div>`
+}
 <footer class="footer">
   <div class="footer-actions">
     <button class="btn-footer-action" id="exportBtn">
@@ -217,6 +226,34 @@ function renderInsightsBar() {
   <div class="ins-sep"></div>
   <div class="ins-item"><span class="ins-val">${st.activeCount}</span><span class="ins-label">in progress</span></div>
 </div>`;
+}
+
+function renderTableView(jobs) {
+  if (!jobs.length) return `<div class="list-empty">No applications match your search.</div>`;
+  return `
+<div class="list-head">
+  <div class="lh">Company</div>
+  <div class="lh">Role</div>
+  <div class="lh">Status</div>
+  <div class="lh">Applied</div>
+  <div class="lh lh-center">Visa</div>
+  <div class="lh">Notes</div>
+</div>
+${jobs.map(j => {
+  const stage = STAGES.find(s => s.id === j.status);
+  const companyEl = j.url
+    ? `<a class="list-link" href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.company)}</a>`
+    : esc(j.company);
+  return `
+<div class="list-row" data-id="${j.id}">
+  <div class="ld ld-company">${companyEl}</div>
+  <div class="ld ld-role">${esc(j.role)}</div>
+  <div class="ld ld-status"><span class="list-dot" style="background:${stage?.color||'var(--text-dim)'}"></span>${j.status}</div>
+  <div class="ld ld-date">${fmtDate(j.dateApplied)}</div>
+  <div class="ld ld-visa">${renderBadge(j.visaSponsor)}</div>
+  <div class="ld ld-notes">${esc(j.notes||'')}</div>
+</div>`;
+}).join('')}`;
 }
 
 function renderCol(stage, jobs) {
@@ -424,6 +461,13 @@ function bind() {
   el('addJobBtn')?.addEventListener('click', () => { S.view = 'add'; S.prefill = null; render(); });
   el('searchInput')?.addEventListener('input', e => { S.filter = e.target.value; refreshKanban(); });
   el('clearSearch')?.addEventListener('click', () => { S.filter = ''; render(); });
+  el('viewKanbanBtn')?.addEventListener('click', () => { S.viewMode = 'kanban'; render(); });
+  el('viewListBtn')?.addEventListener('click', () => { S.viewMode = 'list'; render(); });
+  el('listView')?.addEventListener('click', e => {
+    if (e.target.closest('.list-link')) return;
+    const row = e.target.closest('.list-row');
+    if (row) { S.editId = row.dataset.id; S.view = 'edit'; render(); }
+  });
   el('exportBtn')?.addEventListener('click', exportCSV);
   el('exportCsvBtn')?.addEventListener('click', exportCSV);
   el('jobForm')?.addEventListener('submit', submitForm);
@@ -546,10 +590,15 @@ function bind() {
 
 // ── Kanban Partial Refresh ────────────────────────────────────────────────────
 function refreshKanban() {
-  const kb = el('kanban'); if (!kb) return;
   const filtered = S.filter
     ? S.jobs.filter(j => (j.company+j.role).toLowerCase().includes(S.filter.toLowerCase()))
     : S.jobs;
+  if (S.viewMode === 'list') {
+    const lv = el('listView');
+    if (lv) lv.innerHTML = renderTableView(filtered);
+    return;
+  }
+  const kb = el('kanban'); if (!kb) return;
   kb.innerHTML = STAGES.map(s => renderCol(s, filtered)).join('');
 }
 
@@ -808,6 +857,7 @@ function fmtTs(ts) {
          d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 function daysSince(d) { return Math.max(0, Math.floor((Date.now() - new Date(d)) / 86400000)); }
+function fmtDate(d)   { if (!d) return '—'; return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
 function lastActivityDays(j) {
   if (j.timeline?.length) return Math.floor((Date.now() - new Date(j.timeline[j.timeline.length-1].ts)) / 86400000);
   return daysSince(j.dateApplied);
